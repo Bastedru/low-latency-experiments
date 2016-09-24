@@ -19,7 +19,7 @@ class lockless_ring_buffer_spsc
 		{
 			const auto current_tail = write.load();
             const auto next_tail = increment(current_tail);
-            if (next_tail != read.load(std::memory_order_acquire)) // syncronises with read.load in pop` thread
+            if (next_tail != read.load(std::memory_order_acquire)) // syncronises with read.store in pop thread
             {
                 buffer[current_tail] = val;
                 write.store(next_tail, std::memory_order_release);
