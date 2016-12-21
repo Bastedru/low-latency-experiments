@@ -1,7 +1,6 @@
 Benchmark code from my blog www.nativecoding.wordpress.com 
 
-Licence : All samples are "Public Domain" code 
-http://en.wikipedia.org/wiki/Public_domain_software
+<td><img src="https://img.shields.io/badge/LICENCE-PUBLIC%20DOMAIN-green.svg" alt="Licence badge"></td>
 
 ===========================================================================
 
