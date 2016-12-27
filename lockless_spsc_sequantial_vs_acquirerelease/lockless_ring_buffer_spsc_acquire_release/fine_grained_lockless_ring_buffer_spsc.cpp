@@ -19,9 +19,9 @@ class lockless_ring_buffer_spsc
 		{
 			const auto current_tail = write.load();
             const auto next_tail = increment(current_tail);
-            if (next_tail != read.load(std::memory_order_acquire)) // syncronises with read.store in pop thread
+			if (current_tail - read.load(std::memory_order_acquire) <= size -1 ) // syncronises with read.store in pop thread
             {
-                buffer[current_tail] = val;
+                buffer[current_tail % size] = val;
                 write.store(next_tail, std::memory_order_release);
                 return true;
             }
@@ -36,14 +36,14 @@ class lockless_ring_buffer_spsc
 		
 		bool try_pop(int64_t* pval)
 		{
-			auto currentHead = read.load();
+			const auto currentHead = read.load();
             
             if (currentHead == write.load(std::memory_order_acquire))
             {
                 return false;
             }
 
-            *pval = buffer[currentHead];
+            *pval = buffer[currentHead % size];
             read.store(increment(currentHead), std::memory_order_release); // syncronises with read.load in push thread
 
             return true;
@@ -64,7 +64,7 @@ class lockless_ring_buffer_spsc
 		
 		int64_t increment(int n)
         {
-            return (n + 1) % size;
+            return (n + 1);
         }
 };
 

@@ -19,14 +19,15 @@ class lockless_ring_buffer_spsc
 		{
 			const auto current_tail = write.load();
             const auto next_tail = increment(current_tail);
-            if (next_tail != read.load())
+			
+			if (current_tail - read.load() <= size -1 )
             {
-                buffer[current_tail] = val;
+                buffer.get()[current_tail % size ] = val;
                 write.store(next_tail);
                 return true;
             }
 
-            return false;  
+            return false;
 		}
 		
 		void push(int64_t val)
@@ -36,14 +37,14 @@ class lockless_ring_buffer_spsc
 		
 		bool try_pop(int64_t* pval)
 		{
-			auto currentHead = read.load();
+			const auto currentHead = read.load();
             
             if (currentHead == write.load())
             {
                 return false;
             }
 
-            *pval = buffer[currentHead];
+            *pval = buffer[currentHead % size];
             read.store(increment(currentHead));
 
             return true;
@@ -64,7 +65,7 @@ class lockless_ring_buffer_spsc
 		
 		int64_t increment(int n)
         {
-            return (n + 1) % size;
+            return (n + 1);
         }
 };
 
