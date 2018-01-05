@@ -1,0 +1,19 @@
+CC		= g++
+CFLAGS		= -std=c++11 -c -Wall -O2
+LDFLAGS		= -pthread
+SOURCES		= client_automation.cpp network/tcp_connector.cpp network/socket.cpp network/tcp_connection.cpp
+INCLUDES	= -I.
+OBJECTS		= $(SOURCES:.cpp=.o)
+TARGET		= client_automation
+
+all: $(SOURCES) $(TARGET)
+
+$(TARGET): $(OBJECTS) 
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+
+.cpp.o:
+	$(CC) $(CFLAGS) $(INCLUDES) $< -o $@
+
+clean:
+	rm -rf $(OBJECTS) $(TARGET)
+

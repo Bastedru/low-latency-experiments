@@ -5,7 +5,7 @@ SOURCES =  false_sharing.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 EXECUTABLE = false_sharing
 
-CFLAGS= -I. -std=c++11 -c -g
+CFLAGS= -I. -std=c++11 -c -O2
 
 all: $(OBJECTS) $(EXECUTABLE)
 

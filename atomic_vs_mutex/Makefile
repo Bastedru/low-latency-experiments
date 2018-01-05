@@ -5,7 +5,7 @@ SOURCES =  atomic_vs_mutex.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 EXECUTABLE = atomic_vs_mutex
 
-CFLAGS= -I. -pthread -std=c++11 -c
+CFLAGS= -I. -pthread -std=c++11 -c -O2
 LFLAGS= -pthread
 
 all: $(OBJECTS) $(EXECUTABLE)

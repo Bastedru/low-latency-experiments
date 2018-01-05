@@ -1,6 +1,6 @@
 <td><img src="https://img.shields.io/badge/LICENCE-PUBLIC%20DOMAIN-green.svg" alt="Licence badge"></td>
 
-Low latency experiments , each blogged on www.nativecoding.wordpress.com
+Low latency experiments , mostly blogged on www.nativecoding.wordpress.com
 
 **C++**
 
@@ -22,4 +22,15 @@ Sequential-Consistency SPSC vs Acquire/Release SPSC : https://nativecoding.wordp
 
 **Network/IO**
 
-Coming soon...
+Epoll vs multithreaded IO : It has 3 projects to benchmark a single threaded epolling TCP server against a thread-per-client TCP server.
+							All sockets use TCP_NO_DELAY to disable Nagle algorithm. 
+			
+								1. Client automation : You can specify number of clients and number of messages.
+								   A thread will be spawned for each thread and each thread will send the specified 
+								   amount of messages to the connected server. And each thread will expect a response
+								   per message for automation to end.
+								   
+								2. Server threaded per client : Each connection request spawns a new thread.
+								
+								3. Server reactor : Linux implementation uses edge triggered epoll , whereas Windows one 
+								   uses select. Note that Windows select has a limitation of 64 file descriptors.

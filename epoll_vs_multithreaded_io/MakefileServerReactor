@@ -1,0 +1,18 @@
+CC		= g++
+CFLAGS		= -std=c++11 -c -Wall -O2
+LDFLAGS		= -lpthread
+SOURCES		= server_reactor.cpp network/tcp_server_reactor.cpp network/socket.cpp network/tcp_server.cpp network/tcp_connection.cpp
+INCLUDES	= -I.
+OBJECTS		= $(SOURCES:.cpp=.o)
+TARGET		= server_reactor
+
+all: $(SOURCES) $(TARGET)
+
+$(TARGET): $(OBJECTS) 
+	$(CC)  $(OBJECTS) -o $@ $(LDFLAGS)
+
+.cpp.o:
+	$(CC) $(CFLAGS) $(INCLUDES) $< -o $@
+
+clean:
+	rm -rf $(OBJECTS) $(TARGET)
