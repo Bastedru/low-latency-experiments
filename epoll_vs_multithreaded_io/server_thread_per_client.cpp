@@ -9,6 +9,11 @@
 #include <mutex>
 using namespace std;
 
+#define IP_ADDRESS "127.0.0.1"
+#define PORT 666
+
+#define BENCHMARK
+
 class TcpServerMultithreadedTest : public TCPServerThreadPerClient
 {
 private :
@@ -22,10 +27,12 @@ public:
 
     virtual void onClientConnected(size_t peerIndex) override
     {
+#ifndef BENCHMARK
         m_clientCounterMutex.lock();
         m_clientCounter++;
         m_clientCounterMutex.unlock();
-        //cout << "Client" << peerIndex << " connected : " << m_clientCounter << "TH CONNECTION" << endl;
+        cout << "Client" << peerIndex << " connected : " << m_clientCounter << "TH CONNECTION" << endl;
+#endif
         TCPServerThreadPerClient::onClientConnected(peerIndex);
     }
 
@@ -42,7 +49,7 @@ public:
             {
                 break;
             }
-            
+
             auto peerSocket = getPeerSocket(peerIndex);
 
             char buffer[33];
@@ -60,11 +67,12 @@ public:
 
             auto error = Socket::getCurrentThreadLastSocketError();
 
-            if (error == 0 && read > 0)
+            if ( read > 0)
             {
                 buffer[read] = '\0';
-                //cout << endl << "Received from client " << peerIndex << " : " << buffer << endl;
-
+#ifndef BENCHMARK
+                cout << endl << "Received from client " << peerIndex << " : " << buffer << endl;
+#endif
                 stringstream execReport;
                 execReport << "Exec report ";
                 peerSocket->send(execReport.str());
@@ -72,7 +80,10 @@ public:
                 if (!strcmp(buffer, "quit"))
                 {
                     onClientDisconnected(peerIndex);
-                    //cout << "Client" << peerIndex << " disconnected" << endl;
+#ifndef BENCHMARK
+                    cout << "Client" << peerIndex << " disconnected" << endl;
+#endif
+                    return;
                 }
             }
             else
@@ -80,8 +91,10 @@ public:
                 if (peerSocket->isConnectionLost(error, read))
                 {
                     onClientDisconnected(peerIndex);
-                    //cout << "Client" << peerIndex << " disconnected" << endl;
-                    break;
+#ifndef BENCHMARK
+                    cout << "Client" << peerIndex << " disconnected" << endl;
+#endif
+                    return;
                 }
                 else if( error != 0)
                 {
@@ -97,8 +110,9 @@ int main()
 {
     SocketLibrary::initialise();
     cout << "Starting" << endl;
+
     TcpServerMultithreadedTest server;
-    server.start("127.0.0.1", 666);
+    server.start(IP_ADDRESS, PORT);
 
     while (true)
     {

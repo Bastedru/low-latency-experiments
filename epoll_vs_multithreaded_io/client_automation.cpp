@@ -14,11 +14,17 @@
 using namespace std;
 using namespace std::chrono;
 
+#define BENCHMARK
+
+#define IP_ADDRESS "127.0.0.1"
+#define PORT 666
+
 void clientThread();
 int messageCounter = 0;
 mutex messageCounterMutex;
+int numberOfClients = 0;
 int messageIteration = 0;
-int maxConnectionTrials = 1000;
+int maxConnectionTrials = 10;
 
 int main()
 {
@@ -27,7 +33,7 @@ int main()
     cout << "Enter client number :";
     string userInput;
     cin >> userInput;
-    auto numberOfClients = std::stoi(userInput);
+    numberOfClients = std::stoi(userInput);
 
     cout << "Enter message iteration number :";
     cin >> userInput;
@@ -45,11 +51,11 @@ int main()
     {
         thread->join();
     }
-    
+
     std::chrono::high_resolution_clock::time_point endTime = high_resolution_clock::now();
-    
+
     long long elapsedMilliseconds = duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-    
+
     cout << "Elapsed time is " << elapsedMilliseconds << "milliseconds" << endl;
 
 #ifdef _WIN32
@@ -63,7 +69,7 @@ int main()
     info.c_cc[VTIME] = 0;         /* no timeout */
     tcsetattr(0, TCSANOW, &info); /* set immediately */
 #endif
-    
+
     SocketLibrary::uninitialise();
     return 0;
 }
@@ -73,16 +79,17 @@ void clientThread()
     TCPConnector connector;
 
     TCPConnection* serverSocket{ nullptr };
-    
+
     int numberTrials{ 0 };
 
     while (true)
     {
-        serverSocket = connector.connect("127.0.0.1", 666);
+        serverSocket = connector.connect(IP_ADDRESS, PORT);
         if (serverSocket)
         {
             break;
         }
+#ifndef BENCHMARK
         else
         {
             numberTrials++;
@@ -92,10 +99,17 @@ void clientThread()
                 break;
             }
         }
+#endif
     }
-    
+
     if (serverSocket)
     {
+#ifndef BENCHMARK
+#ifdef SOCKET_DEBUG
+        serverSocket->setName("client_automation");
+#endif
+#endif
+
         for (int i = 0; i < messageIteration; i++)
         {
             stringstream message;
@@ -107,20 +121,28 @@ void clientThread()
 
             char buffer[33];
             std::memset(buffer, 0, 33);
-            auto res = serverSocket->receive(buffer, 32, 5);
+            int res = -1;
 
-            if (res >= 0)
+            while (res != 0)
             {
+                res = serverSocket->receive(buffer, 32);
+                auto error = Socket::getCurrentThreadLastSocketError();
                 if (res > 0)
                 {
                     buffer[res] = '\0';
-                    //cout << endl << "Received from server : " << buffer << endl;
+#ifndef BENCHMARK
+                    cout << endl << "Received from server : " << buffer << endl;
+#endif
+                    break;
                 }
-            }
-            else
-            {
-                cout << endl << "Server disconnected" << endl;
-                break;
+                else
+                {
+                    if(serverSocket->isConnectionLost(error, res))
+                    {
+                        cout << endl << "Server disconnected " << endl;
+                        return;
+                    }
+                }
             }
         }
 

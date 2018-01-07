@@ -6,18 +6,12 @@ using namespace std;
 TCPServerReactor::TCPServerReactor(int pendingConnectionsQueueSize, int acceptTimeout)
 : TCPServer(pendingConnectionsQueueSize, acceptTimeout)
 {
-	#ifdef USE_EPOLL
-	m_epollDescriptor = -1;
-	m_epollEvents = nullptr;
-	#else 
-	FD_ZERO(&m_clientsReadSet);
-	#endif
 }
 
 void TCPServerReactor::stop()
 {
     m_isStopping.store(true);
-	
+
     if (m_reactorThread.get())
     {
         if (m_reactorThread->native_handle())
@@ -25,23 +19,16 @@ void TCPServerReactor::stop()
             m_reactorThread->join();
         }
     }
-	
-	#ifdef USE_EPOLL
-	if(m_epollEvents)
-	{
-		delete[] m_epollEvents;
-	}
-	#endif
+
+#ifdef __linux__
+    m_ioListener.stop();
+#endif
+
 }
 
 void TCPServerReactor::setPollTimeout(long microSeconds)
 {
-	#ifdef USE_EPOLL
-	m_epollTimeout = microSeconds / 1000;
-	#else 
-	m_timeout.tv_sec = (microSeconds / 1000000);
-    m_timeout.tv_usec = microSeconds % 1000000;
-	#endif
+    m_ioListener.setTimeout(microSeconds);
 }
 
 bool TCPServerReactor::start(const string& address, int port)
@@ -51,20 +38,11 @@ bool TCPServerReactor::start(const string& address, int port)
     {
         return false;
     }
-	
-	#ifdef USE_EPOLL
-	m_epollDescriptor = epoll_create1(0);
-	
-	m_epollEvents = new struct epoll_event[MAX_POLL_EVENTS];
-	
-	#else
-    // DEFAULT TIMEOUT IF NOT SET
-    if (m_timeout.tv_sec == 0 && m_timeout.tv_usec == 0)
-    {
-        setPollTimeout(50000);
-    }
-	#endif
-    
+
+#ifdef __linux__
+    m_ioListener.start();
+#endif
+
     // Start reactor thread
     m_reactorThread.reset(new std::thread(&TCPServerReactor::reactorThread, this));
     return true;
@@ -72,32 +50,25 @@ bool TCPServerReactor::start(const string& address, int port)
 
 void TCPServerReactor::onClientConnected(size_t peerIndex)
 {
-#ifdef USE_EPOLL
-	auto sd = m_peerSockets[peerIndex]->getSocketDescriptor();
-	
-	m_peerSocketIndexTable[sd] = peerIndex;
-	
-	struct epoll_event epollSocketDescriptor;
-	epollSocketDescriptor.data.fd = sd;
-	epollSocketDescriptor.events = EPOLLIN | EPOLLET; // Edge trigger mode
-	
-	epoll_ctl(m_epollDescriptor, EPOLL_CTL_ADD, sd, &epollSocketDescriptor);
+#ifdef __linux__
+    auto sd = m_peerSockets[peerIndex]->getSocketDescriptor();
+    m_peerSocketIndexTable[sd] = peerIndex;
+    m_ioListener.addFileDescriptor(sd);
 #endif
 }
 
 void TCPServerReactor::onClientDisconnected(size_t peerIndex)
 {
-	auto peerSocket = m_peerSockets[peerIndex].get();
-	#ifdef USE_EPOLL
-	struct epoll_event epollSocketDescriptor;
-	auto sd = peerSocket->getSocketDescriptor();
-	epollSocketDescriptor.data.fd = sd;
-	epollSocketDescriptor.events = EPOLLIN;
-	epoll_ctl(m_epollDescriptor, EPOLL_CTL_DEL, peerSocket->getSocketDescriptor(), &epollSocketDescriptor);
-	#else
-    FD_CLR(peerSocket->getSocketDescriptor(), &m_clientsReadSet);
-	#endif
+    auto peerSocket = m_peerSockets[peerIndex].get();
+
+#ifdef __linux__
+    m_ioListener.removeFileDescriptor(peerSocket->getSocketDescriptor());
+#elif _WIN32
+    m_ioListener.clearFileDescriptor(peerSocket->getSocketDescriptor());
+#endif
+
     m_peerSocketsConnectionFlags[peerIndex] = false;
+    peerSocket->close();
 }
 
 void* TCPServerReactor::reactorThread()
@@ -105,7 +76,7 @@ void* TCPServerReactor::reactorThread()
     while (true)
     {
         std::lock_guard<std::mutex> guard(m_peerSocketsLock);
-        
+
         if (m_isStopping.load() == true)
         {
             break;
@@ -115,65 +86,65 @@ void* TCPServerReactor::reactorThread()
         {
             continue;
         }
-        
+
         size_t connectedPeerCount{ 0 };
         int maxSocketDescriptor{-1};
-        
+
         auto peerCount = m_peerSockets.size();
         for (size_t i{ 0 }; i < peerCount; i++)
         {
+           int currentSocketDescriptor = m_peerSockets[i]->getSocketDescriptor();
            if (m_peerSocketsConnectionFlags[i] == true)
            {
-                int currentSocketDescriptor = m_peerSockets[i]->getSocketDescriptor();
                 if(currentSocketDescriptor > maxSocketDescriptor)
                 {
                     maxSocketDescriptor = currentSocketDescriptor;
                 }
-				#ifndef USE_EPOLL
-                FD_SET(currentSocketDescriptor, &m_clientsReadSet);
-				#endif
+#ifdef _WIN32
+                m_ioListener.setFileDescriptor(currentSocketDescriptor);
+#endif
                 connectedPeerCount++;
-            }   
-			#ifndef USE_EPOLL
+            }
+#ifdef _WIN32
             else
             {
-                FD_CLR(m_peerSockets[i]->getSocketDescriptor(), &m_clientsReadSet);
-            }   
-			#endif
+                m_ioListener.clearFileDescriptor(currentSocketDescriptor);
+            }
+#endif
         }
-        
+
         if (connectedPeerCount == 0)
         {
             continue;
         }
         int result{ -1 };
 
-		#ifdef USE_EPOLL
-		result = ::epoll_wait(m_epollDescriptor, m_epollEvents, MAX_POLL_EVENTS, m_epollTimeout);
-		#else
-        result = ::select(maxSocketDescriptor+1, &m_clientsReadSet, nullptr, nullptr, &m_timeout);
-		#endif
+#ifdef __linux__
+        result = m_ioListener.getNumberOfReadyFileDescriptors();
+#elif _WIN32
+        result = m_ioListener.eventReady(maxSocketDescriptor);
+#endif
 
         if (result > 0)
         {
-			#ifdef USE_EPOLL
-			// We only iterate thru events with epoll instead of all socket descriptors
-			auto numEvents = result;
-			for (int counter{ 0 }; counter < numEvents; counter++)
+#ifdef __linux__
+            // We only iterate thru events with epoll instead of all socket descriptors
+            auto numEvents = result;
+            for (int counter{ 0 }; counter < numEvents; counter++)
             {
-				size_t peerIndex = m_peerSocketIndexTable[ m_epollEvents[counter].data.fd ];  
-				onClientReady(peerIndex);
-			}
-			#else
+                size_t peerIndex = m_peerSocketIndexTable[m_ioListener.getReadyFileDescriptor(counter)];
+                onClientReady(peerIndex);
+            }
+#elif _WIN32
             // We have to iterate thru all sockets with select
             for (int counter{ 0 }; counter < peerCount; counter++)
             {
-                if (FD_ISSET(m_peerSockets[counter]->getSocketDescriptor(), &m_clientsReadSet))
+                if (m_ioListener.isFileDescriptorReady(m_peerSockets[counter]->getSocketDescriptor()))
                 {
                     onClientReady(counter);
                 }
             }
-			#endif
+#endif
         }
         else if (result == 0)
         {

@@ -5,7 +5,7 @@
 #include <string>
 
 class TCPAcceptor
-{   
+{
     public:
         TCPAcceptor() : TCPAcceptor(32) {}
         explicit TCPAcceptor(int pendingConnectionsQueueSize);

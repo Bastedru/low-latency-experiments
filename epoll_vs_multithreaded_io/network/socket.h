@@ -10,6 +10,8 @@
 #include <string>
 #include <cstddef>
 
+//#define SOCKET_DEBUG
+
 enum class SOCKET_TYPE
 {
     TCP,
@@ -54,10 +56,10 @@ class Socket
         void close();
         bool listen();
         bool bind(const std::string& address, int port);
-        
+
         bool connect(const std::string& address, int port);
         bool connect(const std::string& address, int port, int timeout);
-        
+
         Socket* accept(int timeout);
         bool select(bool read, bool write, long timeout);
 
@@ -72,13 +74,19 @@ class Socket
         bool isConnectionLost(int errorCode, std::size_t receiveResult);
 
         SOCKET_STATE getState() const { return m_state; }
-        
+
         int getPort() const { return m_port; }
         std::string getAddress() const{ return m_address; }
         int getSocketDescriptor() const { return m_socketDescriptor; }
 
+        const std::string& getName() const { return m_socketName;  }
+        void setName(const std::string& socketName) { m_socketName = socketName; }
+        void socketDebugLog(const std::string&);
+
     protected:
         int m_socketDescriptor;
+        int m_receiveCounter = 0;
+        int m_sendCounter = 0;
 
     private:
         SOCKET_STATE m_state;
@@ -87,6 +95,7 @@ class Socket
         SOCKET_TYPE m_socketType;
         std::string m_address;
         struct sockaddr_in m_socketAddress;
+        std::string m_socketName;
 
         // Move ctor deletion
         Socket(Socket&& other) = delete;

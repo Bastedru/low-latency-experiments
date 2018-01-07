@@ -37,33 +37,33 @@ void run_fine_grained()
    pthread_t write_threads[NUM_WRITE_THREADS];
    pthread_t read_threads[NUM_WRITE_THREADS];
    pthread_barrier_init(&thread_barrier,NULL,NUM_READ_THREADS+NUM_WRITE_THREADS);
-   
+
    // Create threads
-   
+
    for(int i(0); i< NUM_WRITE_THREADS; i++)
    {
        pthread_create(&(write_threads[i]), NULL, thread_coarse_grained_write, NULL);
    }
-   
+
    for(int i(0); i< NUM_READ_THREADS; i++)
    {
        pthread_create(&(read_threads[i]), NULL, thread_coarse_grained_read, (void*) NULL);
    }
-   
+
    // Threads will only start when they reach the desired number
-   
+
    // Wait for threads
-   
+
    for(int i(0); i< NUM_WRITE_THREADS; i++)
    {
        pthread_join((write_threads[i]), NULL);
    }
-   
+
    for(int i(0); i< NUM_READ_THREADS; i++)
    {
        pthread_join((read_threads[i]), NULL);
    }
-   
+
    // Destroy the barrier
    pthread_barrier_destroy(&thread_barrier);
 }

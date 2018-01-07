@@ -1,7 +1,7 @@
 CC		= g++
-CFLAGS		= -std=c++11 -c -Wall -O2
+CFLAGS		= -std=c++11 -c -Wall
 LDFLAGS		= -lpthread
-SOURCES		= server_reactor.cpp network/tcp_server_reactor.cpp network/socket.cpp network/tcp_server.cpp network/tcp_connection.cpp
+SOURCES		= server_reactor.cpp network/tcp_server_reactor.cpp network/socket.cpp network/tcp_server.cpp network/tcp_connection.cpp network/io_listener_epoll.cpp
 INCLUDES	= -I.
 OBJECTS		= $(SOURCES:.cpp=.o)
 TARGET		= server_reactor

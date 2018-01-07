@@ -5,12 +5,12 @@ TCPAcceptor::TCPAcceptor(int pendingConnectionsQueueSize)
 {
     m_socket.create();
     m_socket.setPendingConnectionsQueueSize(pendingConnectionsQueueSize);
-} 
+}
 
 bool TCPAcceptor::start(const string& address, int port)
 {
     m_socket.setSocketOption(SOCKET_OPTION::REUSE_ADDRESS, 1);
-    
+
     if (!m_socket.bind(address, port))
     {
         return false;
@@ -20,7 +20,7 @@ bool TCPAcceptor::start(const string& address, int port)
     {
         return false;
     }
-   
+
     return true;
 }
 

@@ -1,7 +1,11 @@
 #include "tcp_server.h"
+#include "tcp_connection.h"
+#ifdef SOCKET_DEBUG
+#include <sstream>
+#endif
 using namespace std;
 
-TCPServer::TCPServer(int pendingConnectionsQueueSize, int acceptTimeout) 
+TCPServer::TCPServer(int pendingConnectionsQueueSize, int acceptTimeout)
 : m_acceptorThreadPtr{ nullptr }, m_acceptTimeout{ acceptTimeout }
 {
     m_isStopping.store(false);
@@ -31,7 +35,7 @@ bool TCPServer::start(const string& address, int port)
 void TCPServer::stop()
 {
     m_isStopping.store(true);
-    
+
     if (m_acceptorThreadPtr.get())
     {
         if (m_acceptorThreadPtr->native_handle())
@@ -43,9 +47,10 @@ void TCPServer::stop()
 
 void* TCPServer::acceptorThread()
 {
+    int peerCounter{ 0 };
     while (true)
     {
-        
+
         if (m_isStopping.load() == true)
         {
             break;
@@ -57,6 +62,14 @@ void* TCPServer::acceptorThread()
         {
             std::lock_guard<std::mutex> guard(m_peerSocketsLock);
             auto peerIndex = addPeer(peerSocket);
+            ///////////////////////////////////////////////////////
+#ifdef SOCKET_DEBUG
+            peerCounter++;
+            stringstream socketName;
+            socketName << "socket" << peerCounter;
+            peerSocket->setName(socketName.str());
+#endif
+            ///////////////////////////////////////////////////////
             onClientConnected(peerIndex);
         }
     }
@@ -66,7 +79,9 @@ void* TCPServer::acceptorThread()
 void TCPServer::onClientDisconnected(size_t peerIndex)
 {
     std::lock_guard<std::mutex> guard(m_peerSocketsLock);
+    auto peerSocket = getPeerSocket(peerIndex);
     m_peerSocketsConnectionFlags[peerIndex] = false;
+    peerSocket->close();
 }
 
 void TCPServer::onClientConnected(std::size_t peerIndex)
@@ -107,7 +122,7 @@ size_t TCPServer::addPeer(TCPConnection* peer)
         }
     }
 
-    if (nonUserPeerIndex == -1) 
+    if (nonUserPeerIndex == -1)
     {
         // No empty slot , create new
         m_peerSocketsConnectionFlags.push_back(true);
@@ -117,7 +132,6 @@ size_t TCPServer::addPeer(TCPConnection* peer)
     else
     {
         // Use an existing peer slot
-        m_peerSockets[nonUserPeerIndex]->close();
         m_peerSockets[nonUserPeerIndex].reset(peer);
         m_peerSocketsConnectionFlags[nonUserPeerIndex] = true;
         ret = nonUserPeerIndex;

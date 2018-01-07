@@ -16,6 +16,14 @@
 
 #include <cstring>
 #include <stdexcept>
+
+#ifdef SOCKET_DEBUG
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#endif
+
+
 using namespace std;
 
 Socket::~Socket()
@@ -25,15 +33,33 @@ Socket::~Socket()
 
 void Socket::close()
 {
-    if (m_socketDescriptor > 0)
+    if (m_state != SOCKET_STATE::DISCONNECTED)
     {
+        socketDebugLog("Socket closed");
+
+        if (m_socketDescriptor > 0)
+        {
 #ifdef __linux__
-        ::close(m_socketDescriptor);
+            ::close(m_socketDescriptor);
 #elif _WIN32
-        ::closesocket(m_socketDescriptor);
+            ::closesocket(m_socketDescriptor);
 #endif
+        }
+        m_state = SOCKET_STATE::DISCONNECTED;
     }
-    m_state = SOCKET_STATE::DISCONNECTED;
+}
+
+
+void Socket::socketDebugLog(const std::string& logMessage)
+{
+#ifdef SOCKET_DEBUG
+    stringstream fileName;
+    fileName << getName() << ".txt";
+    ofstream file;
+    file.open(fileName.str(), std::ios_base::app);
+    file << logMessage << std::endl;
+    file.close();
+#endif
 }
 
 bool Socket::create(SOCKET_TYPE type)
@@ -54,6 +80,7 @@ bool Socket::create(SOCKET_TYPE type)
 
     m_socketType = type;
 
+    // Prefer low latency
     setSocketOption(SOCKET_OPTION::TCP_DISABLE_NAGLE, 1);
 
     return true;
@@ -68,14 +95,6 @@ bool Socket::isConnectionLost(int errorCode, size_t receiveResult)
 {
     bool ret{ false };
 #ifdef __linux__
-    // IMPORTANT NODE : IN LINUX , IT IS NOT GUARANTEED THAT
-    // OTHER SIDE CLOSED THE SOCKET THEREFORE WHEN CALLING RECEIVE 
-    // YOU MUST SET A GOOD ENOUGH TIME OUT
-    if( receiveResult == 0)
-    {
-        ret = true;
-    }
-    
     /*
         100 = Network is down
         101 = Network is unreachable
@@ -147,8 +166,8 @@ void Socket::setSocketOption(SOCKET_OPTION option, int value)
 bool Socket::listen()
 {
     int result = ::listen(m_socketDescriptor, m_pendingConnectionsQueueSize);
-    
-    if (result != 0) 
+
+    if (result != 0)
     {
         return false;
     }
@@ -161,7 +180,7 @@ bool Socket::connect(const string& address, int port)
 {
     initialise(address, port);
 
-    if (::connect(m_socketDescriptor, (struct sockaddr*)&m_socketAddress, sizeof(m_socketAddress)) != 0) 
+    if (::connect(m_socketDescriptor, (struct sockaddr*)&m_socketAddress, sizeof(m_socketAddress)) != 0)
     {
         return false;
     }
@@ -239,8 +258,8 @@ bool Socket::bind(const string& address, int port)
 {
     initialise(address, port);
     int result = ::bind(m_socketDescriptor, (struct sockaddr*)&m_socketAddress, sizeof(m_socketAddress));
-    
-    if (result != 0) 
+
+    if (result != 0)
     {
         return false;
     }
@@ -302,13 +321,13 @@ Socket* Socket::accept(int timeout)
     int peerSocketDesc{ -1 };
     struct sockaddr_in address;
     socklen_t len = sizeof(address);
-    
+
     memset(&address, 0, sizeof(address));
     success = select(true, false, timeout);
 
     if (success)
     {
-        
+
         peerSocketDesc = ::accept(m_socketDescriptor, (struct sockaddr*)&address, &len);
 
         if (peerSocketDesc<0)
@@ -329,17 +348,17 @@ Socket* Socket::accept(int timeout)
     peerSocket->m_state = SOCKET_STATE::CONNECTED;
 
     m_state = SOCKET_STATE::ACCEPTED;
-    
+
     return peerSocket;
 }
 
 int Socket::getAddressInfo(const char* hostname, struct in_addr* socketAddress)
 {
     struct addrinfo *res{ nullptr };
-    
+
     int result = getaddrinfo(hostname, nullptr, nullptr, &res);
 
-    if (result == 0) 
+    if (result == 0)
     {
         memcpy(socketAddress, &((struct sockaddr_in *) res->ai_addr)->sin_addr, sizeof(struct in_addr));
         freeaddrinfo(res);
@@ -388,7 +407,7 @@ int Socket::getSocketOptionValue(SOCKET_OPTION option)
             ret = TCP_QUICKACK;
             #endif
             break;
-			
+
         case SOCKET_OPTION::TCP_ENABLE_CORK:
             #ifdef TCP_CORK
             ret = TCP_CORK;
@@ -415,7 +434,7 @@ void Socket::setBlockingMode(bool blockingMode)
 {
 #if __linux__
     long arg = fcntl(m_socketDescriptor, F_GETFL, NULL);
-    
+
     if (blockingMode)
     {
         arg &= (~O_NONBLOCK);
