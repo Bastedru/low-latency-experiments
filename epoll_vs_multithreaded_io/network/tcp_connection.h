@@ -6,7 +6,7 @@
 #include <cstddef>
 
 class TCPConnection : public Socket
-{   
+{
     public:
         bool create();
         int receive(char* buffer, std::size_t len, int timeout = 0);

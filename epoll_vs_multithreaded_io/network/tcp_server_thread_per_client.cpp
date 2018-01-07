@@ -1,4 +1,5 @@
 #include "tcp_server_thread_per_client.h"
+
 using namespace std;
 
 void TCPServerThreadPerClient::stop()
@@ -19,10 +20,4 @@ void TCPServerThreadPerClient::stop()
 void TCPServerThreadPerClient::onClientConnected(size_t peerIndex)
 {
     m_clientThreads.emplace_back(new thread(&TCPServerThreadPerClient::clientHandlerThread, this, peerIndex));
-}
-
-void TCPServerThreadPerClient::onClientDisconnected(size_t peerIndex)
-{
-    std::lock_guard<std::mutex> guard(m_peerSocketsLock);
-    m_peerSocketsConnectionFlags[peerIndex] = false;
 }

@@ -7,6 +7,11 @@
 #include <mutex>
 using namespace std;
 
+#define IP_ADDRESS "127.0.0.1"
+#define PORT 666
+
+#define BENCHMARK
+
 class TCPServerReactorTest : public TCPServerReactor
 {
     private :
@@ -25,19 +30,20 @@ class TCPServerReactorTest : public TCPServerReactor
 
         virtual void onClientConnected(size_t peerIndex) override
         {
+#ifndef BENCHMARK
             m_clientCounterMutex.lock();
             m_clientCounter++;
             m_clientCounterMutex.unlock();
-            
-            //cout << "Client" << peerIndex << " connected : " << m_clientCounter << "TH CONNECTION" << endl;
-            
+            cout << "Client" << peerIndex << " connected : " << m_clientCounter << "TH CONNECTION" << endl;
+#endif
             TCPServerReactor::onClientConnected(peerIndex);
         }
 
         virtual void onClientReady(size_t peerIndex) override
         {
-            //cout << "Client" << peerIndex << " event ready" << endl;
-
+#ifndef BENCHMARK
+            cout << "Client" << peerIndex << " event ready" << endl;
+#endif
             auto peerSocket = getPeerSocket(peerIndex);
             char buffer[33];
             std::memset(buffer, 0, 33);
@@ -48,11 +54,13 @@ class TCPServerReactorTest : public TCPServerReactor
 #endif
             auto error = Socket::getCurrentThreadLastSocketError();
 
-            if (error == 0 && read > 0)
+            if ( read > 0)
             {
 
                 buffer[read] = '\0';
-                //cout << endl << "Received from client " << peerIndex << " : " << buffer << endl;
+#ifndef BENCHMARK
+                cout << endl << "Received from client " << peerIndex << " : " << buffer << endl;
+#endif
 
                 stringstream execReport;
                 execReport << "Exec report ";
@@ -61,14 +69,18 @@ class TCPServerReactorTest : public TCPServerReactor
                 if (!strcmp(buffer, "quit"))
                 {
                     onClientDisconnected(peerIndex);
-                    //cout << "Client" << peerIndex << " disconnected" << endl;
+#ifndef BENCHMARK
+                    cout << "Client" << peerIndex << " disconnected" << endl;
+#endif
                 }
             }
             else
             {
                 if (peerSocket->isConnectionLost(error, read))
                 {
-                    //cout << "Client" << peerIndex << " disconnected" << endl;
+#ifndef BENCHMARK
+                    cout << "Client" << peerIndex << " disconnected" << endl;
+#endif
                     onClientDisconnected(peerIndex);
                 }
                 else if (error != 0)
@@ -85,7 +97,7 @@ int main()
 
     TCPServerReactorTest server;
     server.setPollTimeout(50000);
-    server.start("127.0.0.1", 666);
+    server.start(IP_ADDRESS, PORT);
 
     while (true)
     {
