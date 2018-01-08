@@ -25,6 +25,9 @@ class TCPServerReactorTest : public TCPServerReactor
 
         virtual void onUnhandledSocketError(int errorCode) override
         {
+#ifdef _WIN32
+            if (errorCode != 10022)
+#endif
             cout << "Unhandled socket error occured : " << errorCode << endl;
         }
 
@@ -96,7 +99,8 @@ int main()
     SocketLibrary::initialise();
 
     TCPServerReactorTest server;
-    server.setPollTimeout(50000);
+    server.setPollTimeout(600000);
+    server.setMaxPollEvents(10240);
     server.start(IP_ADDRESS, PORT);
 
     while (true)

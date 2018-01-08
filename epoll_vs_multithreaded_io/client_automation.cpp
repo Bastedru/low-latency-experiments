@@ -139,7 +139,7 @@ void clientThread()
                 {
                     if(serverSocket->isConnectionLost(error, res))
                     {
-                        cout << endl << "Server disconnected " << endl;
+                        cout << "Server disconnected ,Recv ret "<< res << " socket error " << error << endl;
                         return;
                     }
                 }

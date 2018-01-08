@@ -31,6 +31,13 @@ void TCPServerReactor::setPollTimeout(long microSeconds)
     m_ioListener.setTimeout(microSeconds);
 }
 
+void TCPServerReactor::setMaxPollEvents(size_t maxPollEvents)
+{
+#ifdef __linux__
+    m_ioListener.setMaxPollEvents(maxPollEvents);
+#endif
+}
+
 bool TCPServerReactor::start(const string& address, int port)
 {
     // Start acceptor thread
@@ -54,6 +61,7 @@ void TCPServerReactor::onClientConnected(size_t peerIndex)
     auto sd = m_peerSockets[peerIndex]->getSocketDescriptor();
     m_peerSocketIndexTable[sd] = peerIndex;
     m_ioListener.addFileDescriptor(sd);
+    m_peerSockets[peerIndex]->setBlockingMode(false);
 #endif
 }
 
@@ -61,11 +69,11 @@ void TCPServerReactor::onClientDisconnected(size_t peerIndex)
 {
     auto peerSocket = m_peerSockets[peerIndex].get();
 
-#ifdef __linux__
+    #ifdef __linux__
     m_ioListener.removeFileDescriptor(peerSocket->getSocketDescriptor());
-#elif _WIN32
+    #elif _WIN32
     m_ioListener.clearFileDescriptor(peerSocket->getSocketDescriptor());
-#endif
+    #endif
 
     m_peerSocketsConnectionFlags[peerIndex] = false;
     peerSocket->close();
@@ -133,7 +141,14 @@ void* TCPServerReactor::reactorThread()
             for (int counter{ 0 }; counter < numEvents; counter++)
             {
                 size_t peerIndex = m_peerSocketIndexTable[m_ioListener.getReadyFileDescriptor(counter)];
-                onClientReady(peerIndex);
+                if (m_ioListener.isValidEvent(counter))
+                {
+                    onClientReady(peerIndex);
+                }
+                else
+                {
+                    onClientDisconnected(peerIndex);
+                }
             }
 #elif _WIN32
             // We have to iterate thru all sockets with select

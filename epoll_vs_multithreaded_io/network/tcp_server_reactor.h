@@ -22,6 +22,7 @@ class TCPServerReactor : public TCPServer
         TCPServerReactor(): TCPServerReactor(DEFAULT_PENDING_CONNECTION_QUEUE_SIZE, DEFAULT_ACCEPT_TIMEOUT){}
         explicit TCPServerReactor(int pendingConnectionsQueueSize, int acceptTimeout);
         void setPollTimeout(long microSeconds);
+        void setMaxPollEvents(std::size_t maxPollEvents);
         virtual bool start(const std::string& address, int port) override;
         virtual void stop() override;
         virtual void onClientDisconnected(std::size_t peerIndex) override;

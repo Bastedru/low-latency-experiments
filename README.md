@@ -23,7 +23,7 @@ Sequential-Consistency SPSC vs Acquire/Release SPSC : https://nativecoding.wordp
 **Network/IO**
 
 Epoll vs multithreaded IO : It has 3 projects to benchmark a single threaded epolling TCP server against a thread-per-client TCP server.
-							All sockets use TCP_NO_DELAY to disable Nagle algorithm.
+							All sockets use TCP_NO_DELAY to disable Nagle algorithm. You can change value of IP and PORT macros to change those values.
 			
 1. Client automation : You can specify number of clients and number of messages.
 A thread will be spawned for each thread and each thread will send the specified 
@@ -34,3 +34,6 @@ per message for automation to end.
 								
 3. Server reactor : Linux implementation uses edge triggered epoll , whereas Windows one 
 uses select. Note that Windows select has a limitation of 64 file descriptors.
+
+Note : Max number epoll events and epoll timeout is important for long running tests. If not set accordingly, client automation will receive
+socket error code 104 : Connection reset by peer.
