@@ -41,7 +41,7 @@ public:
         cout << "Unhandled socket error occured : " << errorCode << endl;
     }
 
-    virtual void clientHandlerThread(size_t peerIndex) override
+    virtual void handleClient(size_t peerIndex) override
     {
         while (true)
         {

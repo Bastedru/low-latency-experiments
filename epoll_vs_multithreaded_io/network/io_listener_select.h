@@ -15,6 +15,7 @@ class IOListenerSelect
         ~IOListenerSelect();
         void setTimeout(long microSeconds);
         void setFileDescriptor(int fd);
+        void reset();
         void clearFileDescriptor(int fd);
         int eventReady(int maxSocketDescriptor);
         bool isFileDescriptorReady(int fd);

@@ -8,9 +8,29 @@ TCPServerReactor::TCPServerReactor(int pendingConnectionsQueueSize, int acceptTi
 {
 }
 
+bool TCPServerReactor::start(const string& address, int port)
+{
+    // Start acceptor thread
+    if (TCPServer::start(address, port) == false)
+    {
+        return false;
+    }
+
+    m_socket.setBlockingMode(false);
+
+#ifdef __linux__
+    m_ioListener.start();
+    m_ioListener.addFileDescriptor(m_socket.getSocketDescriptor());
+#endif
+
+    // Start reactor thread
+    m_reactorThread.reset(new std::thread(&TCPServerReactor::reactorThread, this));
+    return true;
+}
+
 void TCPServerReactor::stop()
 {
-    m_isStopping.store(true);
+    TCPServer::stop();
 
     if (m_reactorThread.get())
     {
@@ -38,23 +58,6 @@ void TCPServerReactor::setMaxPollEvents(size_t maxPollEvents)
 #endif
 }
 
-bool TCPServerReactor::start(const string& address, int port)
-{
-    // Start acceptor thread
-    if (TCPServer::start(address, port) == false)
-    {
-        return false;
-    }
-
-#ifdef __linux__
-    m_ioListener.start();
-#endif
-
-    // Start reactor thread
-    m_reactorThread.reset(new std::thread(&TCPServerReactor::reactorThread, this));
-    return true;
-}
-
 void TCPServerReactor::onClientConnected(size_t peerIndex)
 {
 #ifdef __linux__
@@ -75,58 +78,65 @@ void TCPServerReactor::onClientDisconnected(size_t peerIndex)
     m_ioListener.clearFileDescriptor(peerSocket->getSocketDescriptor());
     #endif
 
-    m_peerSocketsConnectionFlags[peerIndex] = false;
-    peerSocket->close();
+    removePeer(peerIndex);
+}
+
+size_t TCPServerReactor::acceptNewConnection()
+{
+    size_t peerIndex{ 0 };
+    TCPConnection* peerSocket = nullptr;
+
+    peerSocket = static_cast<TCPConnection*>(m_socket.accept(m_acceptTimeout));
+
+    if (peerSocket)
+    {
+        auto peerIndex = addPeer(peerSocket);
+        onClientConnected(peerIndex);
+    }
+
+    return peerIndex;
 }
 
 void* TCPServerReactor::reactorThread()
 {
     while (true)
     {
-        std::lock_guard<std::mutex> guard(m_peerSocketsLock);
-
         if (m_isStopping.load() == true)
         {
             break;
-        }
+        }        
 
-        if (m_socket.getState() != SOCKET_STATE::ACCEPTED)
-        {
-            continue;
-        }
+        // Find peer count and max socket descriptor , only needed for select
+#ifdef _WIN32
+        m_ioListener.reset();
+        m_ioListener.setFileDescriptor(m_socket.getSocketDescriptor());
 
         size_t connectedPeerCount{ 0 };
         int maxSocketDescriptor{-1};
 
         auto peerCount = m_peerSockets.size();
+
         for (size_t i{ 0 }; i < peerCount; i++)
         {
            int currentSocketDescriptor = m_peerSockets[i]->getSocketDescriptor();
            if (m_peerSocketsConnectionFlags[i] == true)
            {
+
                 if(currentSocketDescriptor > maxSocketDescriptor)
                 {
                     maxSocketDescriptor = currentSocketDescriptor;
                 }
-#ifdef _WIN32
+
                 m_ioListener.setFileDescriptor(currentSocketDescriptor);
-#endif
                 connectedPeerCount++;
             }
-#ifdef _WIN32
-            else
-            {
-                m_ioListener.clearFileDescriptor(currentSocketDescriptor);
-            }
+        }
 #endif
-        }
 
-        if (connectedPeerCount == 0)
-        {
-            continue;
-        }
         int result{ -1 };
+        TCPConnection* newPeerSocket = nullptr;
 
+        // Client handle events
 #ifdef __linux__
         result = m_ioListener.getNumberOfReadyFileDescriptors();
 #elif _WIN32
@@ -141,9 +151,18 @@ void* TCPServerReactor::reactorThread()
             for (int counter{ 0 }; counter < numEvents; counter++)
             {
                 size_t peerIndex = m_peerSocketIndexTable[m_ioListener.getReadyFileDescriptor(counter)];
+                
                 if (m_ioListener.isValidEvent(counter))
                 {
-                    onClientReady(peerIndex);
+                    auto currentSocketDescriptor = m_ioListener.getReadyFileDescriptor(counter);
+                    if (currentSocketDescriptor == m_socket.getSocketDescriptor())
+                    {
+                        acceptNewConnection();
+                    }
+                    else
+                    {
+                        handleClient(peerIndex);
+                    }
                 }
                 else
                 {
@@ -151,12 +170,18 @@ void* TCPServerReactor::reactorThread()
                 }
             }
 #elif _WIN32
+            // Accept new connections 
+            if (m_ioListener.isFileDescriptorReady(m_socket.getSocketDescriptor()))
+            {
+                acceptNewConnection();
+            }
+
             // We have to iterate thru all sockets with select
             for (int counter{ 0 }; counter < peerCount; counter++)
             {
                 if (m_ioListener.isFileDescriptorReady(m_peerSockets[counter]->getSocketDescriptor()))
                 {
-                    onClientReady(counter);
+                    handleClient(counter);
                 }
             }
 #endif

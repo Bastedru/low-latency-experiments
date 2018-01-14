@@ -10,8 +10,6 @@
 #include <string>
 #include <cstddef>
 
-//#define SOCKET_DEBUG
-
 enum class SOCKET_TYPE
 {
     TCP,
@@ -71,6 +69,7 @@ class Socket
 
         int getLastSocketError();
         static int getCurrentThreadLastSocketError();
+        static std::string getSocketErrorAsString(int errorCode);
         bool isConnectionLost(int errorCode, std::size_t receiveResult);
 
         SOCKET_STATE getState() const { return m_state; }
@@ -81,7 +80,6 @@ class Socket
 
         const std::string& getName() const { return m_socketName;  }
         void setName(const std::string& socketName) { m_socketName = socketName; }
-        void socketDebugLog(const std::string&);
 
     protected:
         int m_socketDescriptor;

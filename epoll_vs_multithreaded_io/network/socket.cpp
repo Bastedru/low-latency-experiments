@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
 #elif _WIN32
 #pragma comment(lib,"Ws2_32.lib")
 #include <Windows.h>
@@ -16,13 +17,6 @@
 
 #include <cstring>
 #include <stdexcept>
-
-#ifdef SOCKET_DEBUG
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#endif
-
 
 using namespace std;
 
@@ -35,8 +29,6 @@ void Socket::close()
 {
     if (m_state != SOCKET_STATE::DISCONNECTED)
     {
-        socketDebugLog("Socket closed");
-
         if (m_socketDescriptor > 0)
         {
 #ifdef __linux__
@@ -47,19 +39,6 @@ void Socket::close()
         }
         m_state = SOCKET_STATE::DISCONNECTED;
     }
-}
-
-
-void Socket::socketDebugLog(const std::string& logMessage)
-{
-#ifdef SOCKET_DEBUG
-    stringstream fileName;
-    fileName << getName() << ".txt";
-    ofstream file;
-    file.open(fileName.str(), std::ios_base::app);
-    file << logMessage << std::endl;
-    file.close();
-#endif
 }
 
 bool Socket::create(SOCKET_TYPE type)
@@ -116,6 +95,34 @@ bool Socket::isConnectionLost(int errorCode, size_t receiveResult)
     {
         m_state = SOCKET_STATE::DISCONNECTED;
     }
+    return ret;
+}
+
+string Socket::getSocketErrorAsString(int errorCode)
+{
+    string ret;
+#ifdef __linux__
+    ret = strerror(errorCode);
+#elif _WIN32
+    HMODULE lib = ::LoadLibraryA("WSock32.dll");
+    char* tempString = nullptr;
+
+    FormatMessageA(FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS,
+        (LPCVOID)lib, errorCode,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPSTR)&tempString, 0, NULL);
+
+    if (tempString)
+    {
+        ret = tempString;
+        LocalFree(tempString);
+    }
+
+    if (lib)
+    {
+        ::FreeLibrary(lib);
+    }
+#endif
     return ret;
 }
 
@@ -407,7 +414,6 @@ int Socket::getSocketOptionValue(SOCKET_OPTION option)
             ret = TCP_QUICKACK;
             #endif
             break;
-
         case SOCKET_OPTION::TCP_ENABLE_CORK:
             #ifdef TCP_CORK
             ret = TCP_CORK;

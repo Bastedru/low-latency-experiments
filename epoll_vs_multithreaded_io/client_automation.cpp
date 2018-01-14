@@ -6,8 +6,10 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <atomic>
 #include <mutex>
 #include <chrono>
+#include <memory>
 #if __linux__
 #include <termios.h>
 #endif`
@@ -25,10 +27,12 @@ mutex messageCounterMutex;
 int numberOfClients = 0;
 int messageIteration = 0;
 int maxConnectionTrials = 10;
+atomic<int> numberDisconnections;
 
 int main()
 {
     SocketLibrary::initialise();
+    numberDisconnections.store(0);
 
     cout << "Enter client number :";
     string userInput;
@@ -55,8 +59,13 @@ int main()
     std::chrono::high_resolution_clock::time_point endTime = high_resolution_clock::now();
 
     long long elapsedMilliseconds = duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+    long long elapsedMicroseconds = elapsedMilliseconds * 1000;
 
-    cout << "Elapsed time is " << elapsedMilliseconds << "milliseconds" << endl;
+    double averageRTTtime = (double)elapsedMicroseconds / (numberOfClients * messageIteration);
+
+    cout << "Elapsed time is " << elapsedMilliseconds << " milliseconds" << endl << endl;
+    cout << "Average RTT time is " << averageRTTtime << " microseconds" << endl << endl;
+    cout << "Number of disconnections is " << numberDisconnections << endl << endl;
 
 #ifdef _WIN32
     system("pause");
@@ -76,7 +85,7 @@ int main()
 
 void clientThread()
 {
-    TCPConnector connector;
+    unique_ptr<TCPConnector> connector(new TCPConnector);
 
     TCPConnection* serverSocket{ nullptr };
 
@@ -84,32 +93,15 @@ void clientThread()
 
     while (true)
     {
-        serverSocket = connector.connect(IP_ADDRESS, PORT);
+        serverSocket = connector->connect(IP_ADDRESS, PORT);
         if (serverSocket)
         {
             break;
         }
-#ifndef BENCHMARK
-        else
-        {
-            numberTrials++;
-            if (numberTrials == maxConnectionTrials)
-            {
-                cout << endl << "Max connection trial reached" << endl;
-                break;
-            }
-        }
-#endif
     }
 
     if (serverSocket)
     {
-#ifndef BENCHMARK
-#ifdef SOCKET_DEBUG
-        serverSocket->setName("client_automation");
-#endif
-#endif
-
         for (int i = 0; i < messageIteration; i++)
         {
             stringstream message;
@@ -139,8 +131,18 @@ void clientThread()
                 {
                     if(serverSocket->isConnectionLost(error, res))
                     {
-                        cout << "Server disconnected ,Recv ret "<< res << " socket error " << error << endl;
-                        return;
+                        serverSocket->close();
+                        connector.reset(new TCPConnector);
+                        ++numberDisconnections;
+                        while (true)
+                        {
+                            serverSocket = connector->connect(IP_ADDRESS, PORT);
+                            if (serverSocket)
+                            {
+                                serverSocket->send(message.str());
+                                break;
+                            }
+                        }
                     }
                 }
             }

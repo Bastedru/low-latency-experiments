@@ -36,4 +36,8 @@ per message for automation to end.
 uses select. Note that Windows select has a limitation of 64 file descriptors.
 
 Note : Max number epoll events and epoll timeout is important for long running tests. If not set accordingly, client automation will receive
-socket error code 104 : Connection reset by peer.
+socket error code 104 : Connection reset by peer. Client automation handles that by reconnecting and reports number of disconnects at the end.
+
+Benchmark results : Measured RTT time from client automation on a Linux laptop using loopback device adapter as the purpose was 
+benchmarking IO. In all tests , epoll RTT time was better than thread per client RTT time , however could not find any relation between 
+number of threads and RTT time as thread per client RTT time didn`t get significantly worse as number of threads increased.

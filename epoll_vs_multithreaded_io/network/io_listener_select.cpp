@@ -2,7 +2,7 @@
 
 IOListenerSelect::IOListenerSelect()
 {
-    FD_ZERO(&m_clientsReadSet);
+    reset();
     setTimeout(50000);
 }
 
@@ -19,6 +19,11 @@ void IOListenerSelect::setTimeout(long microSeconds)
 void IOListenerSelect::setFileDescriptor(int fd)
 {
     FD_SET(fd, &m_clientsReadSet);
+}
+
+void IOListenerSelect::reset()
+{
+    FD_ZERO(&m_clientsReadSet);
 }
 
 void IOListenerSelect::clearFileDescriptor(int fd)

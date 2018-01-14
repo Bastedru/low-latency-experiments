@@ -1,12 +1,9 @@
 #include "tcp_server.h"
 #include "tcp_connection.h"
-#ifdef SOCKET_DEBUG
-#include <sstream>
-#endif
 using namespace std;
 
 TCPServer::TCPServer(int pendingConnectionsQueueSize, int acceptTimeout)
-: m_acceptorThreadPtr{ nullptr }, m_acceptTimeout{ acceptTimeout }
+: m_acceptTimeout{ acceptTimeout }
 {
     m_isStopping.store(false);
     m_socket.create();
@@ -27,84 +24,12 @@ bool TCPServer::start(const string& address, int port)
         return false;
     }
 
-    m_acceptorThreadPtr.reset(new std::thread(&TCPServer::acceptorThread, this));
-
     return true;
 }
 
 void TCPServer::stop()
 {
     m_isStopping.store(true);
-
-    if (m_acceptorThreadPtr.get())
-    {
-        if (m_acceptorThreadPtr->native_handle())
-        {
-            m_acceptorThreadPtr->join();
-        }
-    }
-}
-
-void* TCPServer::acceptorThread()
-{
-    int peerCounter{ 0 };
-    while (true)
-    {
-
-        if (m_isStopping.load() == true)
-        {
-            break;
-        }
-
-        auto peerSocket = static_cast<TCPConnection*>(m_socket.accept(m_acceptTimeout));
-
-        if (peerSocket)
-        {
-            std::lock_guard<std::mutex> guard(m_peerSocketsLock);
-            auto peerIndex = addPeer(peerSocket);
-            ///////////////////////////////////////////////////////
-#ifdef SOCKET_DEBUG
-            peerCounter++;
-            stringstream socketName;
-            socketName << "socket" << peerCounter;
-            peerSocket->setName(socketName.str());
-#endif
-            ///////////////////////////////////////////////////////
-            onClientConnected(peerIndex);
-        }
-    }
-    return nullptr;
-}
-
-void TCPServer::onClientDisconnected(size_t peerIndex)
-{
-    std::lock_guard<std::mutex> guard(m_peerSocketsLock);
-    auto peerSocket = getPeerSocket(peerIndex);
-    m_peerSocketsConnectionFlags[peerIndex] = false;
-    peerSocket->close();
-}
-
-void TCPServer::onClientConnected(std::size_t peerIndex)
-{
-    // MEANT TO BE OVERRIDDEN
-}
-
-
-void TCPServer::onUnhandledSocketError(int errorCode)
-{
-    // MEANT TO BE OVERRIDDEN
-}
-
-void TCPServer::clientHandlerThread(std::size_t peerIndex)
-{
-    // MEANT TO BE OVERRIDDEN FOR THREAD-PER-CLIENT TYPE SERVERS
-    // ALSO OVERRIDERS HAVE TO CALL onUnhandledSocketError and onClientDisconnected
-}
-
-void TCPServer::onClientReady(std::size_t peerIndex)
-{
-    // MEANT TO BE OVERRIDDEN FOR REACTOR(POLL/SELECT/EPOLL) TYPE SERVERS
-    // ALSO OVERRIDERS HAVE TO CALL onUnhandledSocketError and onClientDisconnected
 }
 
 size_t TCPServer::addPeer(TCPConnection* peer)
@@ -137,4 +62,11 @@ size_t TCPServer::addPeer(TCPConnection* peer)
         ret = nonUserPeerIndex;
     }
     return ret;
+}
+
+void TCPServer::removePeer(std::size_t peerIndex)
+{
+    auto peerSocket = getPeerSocket(peerIndex);
+    m_peerSocketsConnectionFlags[peerIndex] = false;
+    peerSocket->close();
 }

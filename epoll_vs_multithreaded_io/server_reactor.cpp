@@ -42,7 +42,7 @@ class TCPServerReactorTest : public TCPServerReactor
             TCPServerReactor::onClientConnected(peerIndex);
         }
 
-        virtual void onClientReady(size_t peerIndex) override
+        virtual void handleClient(size_t peerIndex) override
         {
 #ifndef BENCHMARK
             cout << "Client" << peerIndex << " event ready" << endl;
@@ -99,7 +99,7 @@ int main()
     SocketLibrary::initialise();
 
     TCPServerReactorTest server;
-    server.setPollTimeout(600000);
+    server.setPollTimeout(-1);
     server.setMaxPollEvents(10240);
     server.start(IP_ADDRESS, PORT);
 

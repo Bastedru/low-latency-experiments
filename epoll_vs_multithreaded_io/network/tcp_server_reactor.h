@@ -30,13 +30,13 @@ class TCPServerReactor : public TCPServer
         virtual void* reactorThread();
     protected :
         std::unique_ptr<std::thread> m_reactorThread;
-
 #ifdef __linux__
         IOListenerEpoll m_ioListener;
         std::unordered_map<int, std::size_t> m_peerSocketIndexTable;
 #elif _WIN32
         IOListenerSelect m_ioListener;
 #endif
+        std::size_t acceptNewConnection();
 
 };
 

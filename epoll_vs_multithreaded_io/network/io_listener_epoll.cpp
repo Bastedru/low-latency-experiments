@@ -22,7 +22,7 @@ void IOListenerEpoll::stop()
     if (m_epollEvents)
     {
         delete[] m_epollEvents;
-        m_epollEvents = nullptr; // delete[] does not null
+		m_epollEvents = nullptr; // delete[] does not null
     }
 }
 
@@ -38,11 +38,11 @@ void IOListenerEpoll::addFileDescriptor(int fd)
 
     epollSocketDescriptor.events = EPOLLIN;
 
-    if(m_epollMode == EPOLL_MODE::EDGE_TRIGGERED)
-    {
-        epollSocketDescriptor.events |= EPOLLET;
-    }
-
+	if(m_epollMode == EPOLL_MODE::EDGE_TRIGGERED)
+	{
+		epollSocketDescriptor.events |= EPOLLET;
+	}
+    
     epoll_ctl(m_epollDescriptor, EPOLL_CTL_ADD, fd, &epollSocketDescriptor);
 }
 
@@ -51,12 +51,12 @@ void IOListenerEpoll::removeFileDescriptor(int fd)
     struct epoll_event epollSocketDescriptor;
     epollSocketDescriptor.data.fd = fd;
     epollSocketDescriptor.events = EPOLLIN;
-
-    if(m_epollMode == EPOLL_MODE::EDGE_TRIGGERED)
-    {
-        epollSocketDescriptor.events |= EPOLLET;
-    }
-
+	
+	if(m_epollMode == EPOLL_MODE::EDGE_TRIGGERED)
+	{
+		epollSocketDescriptor.events |= EPOLLET;
+	}
+	
     epoll_ctl(m_epollDescriptor, EPOLL_CTL_DEL, fd, &epollSocketDescriptor);
 }
 
@@ -71,8 +71,6 @@ int IOListenerEpoll::getNumberOfReadyFileDescriptors()
 
 bool IOListenerEpoll::isValidEvent(int index)
 {
-    int ret{ -1 };
-
     if ((m_epollEvents[index].events & EPOLLERR) || (m_epollEvents[index].events & EPOLLHUP) || (!(m_epollEvents[index].events & EPOLLIN)) )
     {
         return false;
@@ -84,6 +82,6 @@ bool IOListenerEpoll::isValidEvent(int index)
 int IOListenerEpoll::getReadyFileDescriptor(int index)
 {
     int ret{ -1 };
-    ret = m_epollEvents[index].data.fd;
+	ret = m_epollEvents[index].data.fd;
     return ret;
 }
