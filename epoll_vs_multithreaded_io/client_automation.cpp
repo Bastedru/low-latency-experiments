@@ -10,9 +10,7 @@
 #include <mutex>
 #include <chrono>
 #include <memory>
-#if __linux__
 #include <termios.h>
-#endif`
 using namespace std;
 using namespace std::chrono;
 
@@ -67,9 +65,6 @@ int main()
     cout << "Average RTT time is " << averageRTTtime << " microseconds" << endl << endl;
     cout << "Number of disconnections is " << numberDisconnections << endl << endl;
 
-#ifdef _WIN32
-    system("pause");
-#elif __linux__
     std::cout << std::endl << "Press any key to continue..." << std::endl;
     struct termios info;
     tcgetattr(0, &info);          /* get current terminal attirbutes; 0 is the file descriptor for stdin */
@@ -77,7 +72,6 @@ int main()
     info.c_cc[VMIN] = 1;          /* wait until at least one keystroke available */
     info.c_cc[VTIME] = 0;         /* no timeout */
     tcsetattr(0, TCSANOW, &info); /* set immediately */
-#endif
 
     SocketLibrary::uninitialise();
     return 0;

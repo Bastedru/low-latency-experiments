@@ -4,12 +4,8 @@
 #include "socket.h"
 #include "tcp_server.h"
 
-#ifdef __linux__
 #include "io_listener_epoll.h"
 #include <unordered_map>
-#elif _WIN32
-#include "io_listener_select.h"
-#endif
 
 #include <string>
 #include <thread>
@@ -30,14 +26,9 @@ class TCPServerReactor : public TCPServer
         virtual void* reactorThread();
     protected :
         std::unique_ptr<std::thread> m_reactorThread;
-#ifdef __linux__
         IOListenerEpoll m_ioListener;
         std::unordered_map<int, std::size_t> m_peerSocketIndexTable;
-#elif _WIN32
-        IOListenerSelect m_ioListener;
-#endif
         std::size_t acceptNewConnection();
-
 };
 
 #endif

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <mutex>
+#include <pthread>
 using namespace std;
 
 #define IP_ADDRESS "127.0.0.1"
@@ -19,6 +20,7 @@ class TcpServerMultithreadedTest : public TCPServerThreadPerClient
 private :
     int m_clientCounter;
     mutex m_clientCounterMutex;
+
 public:
 
     TcpServerMultithreadedTest() : m_clientCounter{0}
@@ -43,6 +45,11 @@ public:
 
     virtual void handleClient(size_t peerIndex) override
     {
+        // Set thread name so looks nicely in stap output
+        stringstream threadName;
+        threadName << "worker_" << peerIndex ;
+        pthread_setname_np(m_clientThreads[peerIndex]->native_handle(), threadName.str().c_str());
+
         while (true)
         {
             if (m_isStopping.load() == true)
@@ -57,12 +64,7 @@ public:
             int read{ -1 };
             {
                 std::lock_guard<std::mutex> guard(m_peerSocketsLock);
-
-#if _WIN32
-                read = peerSocket->receive(buffer,32, 10);
-#elif __linux__
                 read = peerSocket->receive(buffer, 32);
-#endif
             }
 
             auto error = Socket::getCurrentThreadLastSocketError();
@@ -112,6 +114,8 @@ int main()
     cout << "Starting" << endl;
 
     TcpServerMultithreadedTest server;
+    cout << "Server recv buffer size : " << server.getAcceptorSocket()->getSocketOption(SOCKET_OPTION::RECEIVE_BUFFER_SIZE) << endl;
+    cout << "Server send buffer size : " << server.getAcceptorSocket()->getSocketOption(SOCKET_OPTION::SEND_BUFFER_SIZE) << endl;
     server.start(IP_ADDRESS, PORT);
 
     while (true)

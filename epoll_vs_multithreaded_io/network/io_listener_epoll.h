@@ -25,14 +25,14 @@ class IOListenerEpoll
         bool isValidEvent(int index);
         int getReadyFileDescriptor(int index);
         void setEpollMode(EPOLL_MODE mode) { m_epollMode = mode; }
-		void setMaxPollEvents(std::size_t maxPollEvents) { m_maxPollEvents = maxPollEvents; }
-		EPOLL_MODE getEpollMode () const { return m_epollMode; }
+        void setMaxPollEvents(std::size_t maxPollEvents) { m_maxPollEvents = maxPollEvents; }
+        EPOLL_MODE getEpollMode () const { return m_epollMode; }
     private:
         EPOLL_MODE m_epollMode;
         int m_epollDescriptor;
         struct epoll_event* m_epollEvents;
         int m_epollTimeout;
-		std::size_t m_maxPollEvents;
+        std::size_t m_maxPollEvents;
 };
 
 #endif

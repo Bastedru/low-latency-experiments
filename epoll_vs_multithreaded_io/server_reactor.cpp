@@ -25,9 +25,6 @@ class TCPServerReactorTest : public TCPServerReactor
 
         virtual void onUnhandledSocketError(int errorCode) override
         {
-#ifdef _WIN32
-            if (errorCode != 10022)
-#endif
             cout << "Unhandled socket error occured : " << errorCode << endl;
         }
 
@@ -50,11 +47,7 @@ class TCPServerReactorTest : public TCPServerReactor
             auto peerSocket = getPeerSocket(peerIndex);
             char buffer[33];
             std::memset(buffer, 0, 33);
-#if _WIN32
-            auto read = peerSocket->receive(buffer, 32, 10);
-#elif __linux__
             auto read = peerSocket->receive(buffer, 32);
-#endif
             auto error = Socket::getCurrentThreadLastSocketError();
 
             if ( read > 0)
@@ -101,6 +94,8 @@ int main()
     TCPServerReactorTest server;
     server.setPollTimeout(-1);
     server.setMaxPollEvents(10240);
+    cout << "Server recv buffer size : " << server.getAcceptorSocket()->getSocketOption(SOCKET_OPTION::RECEIVE_BUFFER_SIZE) << endl;
+    cout << "Server send buffer size : " << server.getAcceptorSocket()->getSocketOption(SOCKET_OPTION::SEND_BUFFER_SIZE) << endl;
     server.start(IP_ADDRESS, PORT);
 
     while (true)
