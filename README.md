@@ -1,6 +1,6 @@
 <td><img src="https://img.shields.io/badge/LICENCE-PUBLIC%20DOMAIN-green.svg" alt="Licence badge"></td>
 
-Low latency experiments , mostly blogged on www.nativecoding.wordpress.com
+Low latency experiments , all blogged on www.nativecoding.wordpress.com
 
 **C++**
 
@@ -22,22 +22,4 @@ Sequential-Consistency SPSC vs Acquire/Release SPSC : https://nativecoding.wordp
 
 **Network/IO**
 
-Epoll vs multithreaded IO : It has 3 projects to benchmark a single threaded epolling TCP server against a thread-per-client TCP server.
-							All sockets use TCP_NO_DELAY to disable Nagle algorithm. You can change value of IP and PORT macros to change those values.
-			
-1. Client automation : You can specify number of clients and number of messages.
-A thread will be spawned for each thread and each thread will send the specified 
-amount of messages to the connected server. And each thread will expect a response
-per message for automation to end.
-								   
-2. Server threaded per client : Each connection request spawns a new client handler thread.
-								
-3. Server reactor : Linux implementation uses edge triggered epoll , whereas Windows one 
-uses select. Note that Windows select has a limitation of 64 file descriptors.
-
-Note : Max number epoll events and epoll timeout is important for long running tests. If not set accordingly, client automation will receive
-socket error code 104 : Connection reset by peer. Client automation handles that by reconnecting and reports number of disconnects at the end.
-
-Benchmark results : Measured RTT time from client automation on a Linux laptop using loopback device adapter as the purpose was 
-benchmarking IO. In all tests , epoll RTT time was better than thread per client RTT time , however could not find any relation between 
-number of threads and RTT time as thread per client RTT time didn`t get significantly worse as number of threads increased.
+Epoll vs multithreaded IO : https://nativecoding.wordpress.com/2018/01/17/epoll-vs-multithreaded-io-benchmark/
