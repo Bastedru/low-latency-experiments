@@ -7,7 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <mutex>
-#include <pthread>
+#include <pthread.h>
 using namespace std;
 
 #define IP_ADDRESS "127.0.0.1"
