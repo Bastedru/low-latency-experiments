@@ -16,7 +16,7 @@ class TCPServerReactor : public TCPServer
 {
     public:
         TCPServerReactor(): TCPServerReactor(DEFAULT_PENDING_CONNECTION_QUEUE_SIZE, DEFAULT_ACCEPT_TIMEOUT){}
-        explicit TCPServerReactor(int pendingConnectionsQueueSize, int acceptTimeout);
+        TCPServerReactor(int pendingConnectionsQueueSize, int acceptTimeout);
         void setPollTimeout(long microSeconds);
         void setMaxPollEvents(std::size_t maxPollEvents);
         virtual bool start(const std::string& address, int port) override;

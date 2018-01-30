@@ -14,7 +14,7 @@ class TCPServerThreadPerClient : public TCPServer
 {
     public:
         TCPServerThreadPerClient() : TCPServerThreadPerClient(DEFAULT_PENDING_CONNECTION_QUEUE_SIZE, DEFAULT_ACCEPT_TIMEOUT) {}
-        explicit TCPServerThreadPerClient(int pendingConnectionsQueueSize, int acceptTimeout): m_acceptorThreadPtr{ nullptr } {}
+        TCPServerThreadPerClient(int pendingConnectionsQueueSize, int acceptTimeout): m_acceptorThreadPtr{ nullptr } {}
         void* acceptThread() ;
         virtual bool start(const std::string& address, int port) override;
         virtual void stop() override;

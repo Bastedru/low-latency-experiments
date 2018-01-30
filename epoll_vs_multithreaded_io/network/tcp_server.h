@@ -15,7 +15,7 @@ class TCPServer
 {
     public:
         TCPServer() : TCPServer(DEFAULT_PENDING_CONNECTION_QUEUE_SIZE, DEFAULT_ACCEPT_TIMEOUT) {}
-        explicit TCPServer(int pendingConnectionsQueueSize, int acceptTimeout);
+        TCPServer(int pendingConnectionsQueueSize, int acceptTimeout);
         virtual ~TCPServer() { stop(); }
 
         virtual bool start(const std::string& address, int port);
