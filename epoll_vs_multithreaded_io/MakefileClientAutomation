@@ -1,5 +1,5 @@
 CC		= g++
-CFLAGS		= -std=c++11 -g -c -Wall 
+CFLAGS		= -std=c++11 -g -c -Wall -O2
 LDFLAGS		= -pthread
 SOURCES		= client_automation.cpp network/tcp_connector.cpp network/socket.cpp network/tcp_connection.cpp
 INCLUDES	= -I.

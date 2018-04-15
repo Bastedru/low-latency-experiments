@@ -1,5 +1,5 @@
 CC		= g++
-CFLAGS		= -std=c++11 -c -Wall
+CFLAGS		= -std=c++11 -c -Wall -O2
 LDFLAGS		= -lpthread
 SOURCES		= server_reactor.cpp network/tcp_server_reactor.cpp network/socket.cpp network/tcp_server.cpp network/tcp_connection.cpp network/io_listener_epoll.cpp
 INCLUDES	= -I.
